@@ -1,0 +1,74 @@
+Analyze the provided Chest X-ray report and extract findings for the Target Entity List into a structured JSON dataset.
+
+Target Entity List (Strict Order):
+["normal lung transparency", "normal cardiac silhouette", "normal hilar contour", "intact osseous structures", "aortic elongation", "cardiomegaly", "nodule", "pleural effusion", "scoliosis", "vertebral degenerative changes", "hyperinflated lung", "vascular hilar enlargement", "atelectasis", "aortic atheromatosis", "pleural thickening", "interstitial pattern", "alveolar pattern", "electrical device", "hemidiaphragm elevation", "fracture", "hypoexpansion", "central venous catheter", "hiatal hernia", "endotracheal tube", "NSG tube", "bronchiectasis", "goiter", "osteopenia", "chronic changes", "infiltrates", "fibrotic band", "increased density", "kyphosis", "consolidation", "pneumothorax", "edema", "lung opacity", "pneumonia", "enlarged cardiomediastinum", "lung lesion", "support devices"]
+
+1. Presence Assignment Rules
+Assign one of the following 4 statuses to EACH entity. Do not confuse "Uncertain" with "Not Mentioned".
+
+Yes: Explicitly reported as present/seen (e.g., "identified", "observed", "consistent with", "compatible with").
+
+No:
+- Explicit negation (e.g., "no evidence of", "absent", "ruled out").
+- OR Logical Inference from "Normalcy": The report describes the specific anatomical region as "normal", "clear" or "intact" logically excluding the pathology. (See Inference Guidelines below).
+
+Uncertain: The report mentions the entity but describes it with ambiguity, probability, or conditional language (e.g., "suggests", "possible", "cannot exclude", "suspicious for", "questionable").
+
+Not Mentioned: The entity is not discussed, and there is no statement of "normalcy" regarding its specific anatomical location that would allow for a logical "No".
+
+2. Logical Inference Guidelines (For assigning "No" or "Yes" to Normalcy) Use these triggers to assign "No" to pathologies and "Yes" to corresponding Normalcy entities:
+You may ONLY infer "No" if the report contains the specific Trigger Phrases (or exact semantic equivalents) listed below.
+
+"Lungs are clear / clean / unremarkable"
+"Yes" to: normal lung transparency.
+"No" to: pneumonia, infiltrates, consolidation, edema, alveolar pattern, lung opacity, increased density, atelectasis, nodule, lung lesion, fibrotic band, bronchiectasis, interstitial pattern.
+    
+"Lung volumes are normal"
+"No" to: hyperinflated lung, hypoexpansion.
+
+"Pleural spaces clear" OR "Costophrenic angles sharp"
+"No" to: pleural effusion, pleural thickening, pneumothorax.
+
+"Heart size normal" OR "Cardiomediastinal silhouette normal"
+"Yes" to: normal cardiac silhouette.
+"No" to: cardiomegaly, enlarged cardiomediastinum, vascular hilar enlargement (if hila not mentioned otherwise).
+
+"Hila are unremarkable" OR "Mediastinum is unremarkable / normal contour"
+"Yes" to: normal hilar contour
+"No" to: aortic elongation, aortic atheromatosis (unless calcification mentioned), goiter.
+
+"Osseous structures intact / Bones are unremarkable"
+"Yes" to: intact osseous structures
+"No" to: fracture, vertebral degenerative changes, osteopenia. Note: Do NOT infer "No" for scoliosis or kyphosis unless alignment is specifically described as normal.
+
+"Diaphragms are normal / smooth"
+"No" to: hemidiaphragm elevation, hiatal hernia.
+
+"No tubes, lines, or foreign bodies"
+"No" to: support devices, electrical device, central venous catheter, endotracheal tube, NSG tube.
+
+"No acute or chronic cardiopulmonary abnormality"
+"No" to: All Lung/Heart/Pleura entities listed above, plus explicitly "chronic changes".
+
+3. Location Assignment Rules
+[Specific Location]: Output the exact and complete anatomical location if available (e.g., "left upper lobe", "right lung", "bilateral", "RUL", "retrocardiac", "apical", "T7").
+Uncertain: Output "Uncertain" if the location is vague (e.g., "in the chest") or refers to the whole organ (e.g., "lungs").
+NA: Presence is "No" or "Not Mentioned".
+
+4. Evidential Segment & Characteristics (For CLIP Training)
+
+evidential_segment: Extract the specific clause or segment of the sentence describing the entity from the original report. CRITICAL: If there are multiple relevant segments, combine them into a single string (multiple sentence separated by "; "). If a sentence contains multiple unrelated findings (e.g., "The lungs are clear, but the heart is enlarged"), you must exclude the unrelated parts. Only output the segment relevant to the specific entity.
+
+characteristics: If Presence is "Yes", extract descriptive adjectives regarding morphology, density, or severity (e.g., "patchy", "blunted", "calcified", "minimal", "enlarged"). If "No" or "NA", use an empty list [].
+
+5. Output Format: Provide the output strictly as a valid JSON object, START your response with { and END with }. The JSON structure must be:
+
+{
+  "aortic elongation": {
+    "presence": "Yes / No / Uncertain / Not Mentioned",
+    "location": "[Specific Location] / Uncertain / NA",
+    "characteristics": [],
+    "evidential_segment": "[Focused clause/segment only, no irrelevant info]",
+  },
+  ... [CRITCAL: You are required to output the full schema for all 41 entities.]
+}
